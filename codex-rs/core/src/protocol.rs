@@ -16,6 +16,7 @@ use serde::Serialize;
 use serde_bytes::ByteBuf;
 use strum_macros::Display;
 use uuid::Uuid;
+use codex_protocol::custom_prompts::CustomPrompt;
 
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
@@ -124,6 +125,9 @@ pub enum Op {
 
     /// Request a single history entry identified by `log_id` + `offset`.
     GetHistoryEntryRequest { offset: usize, log_id: u64 },
+
+    /// Request the list of available custom prompts for the slash popup.
+    ListCustomPrompts,
 
     /// Request the agent to summarize the current conversation context.
     /// The agent will use its existing context (either conversation history or previous response id)
@@ -483,6 +487,9 @@ pub enum EventMsg {
     /// Response to GetHistoryEntryRequest.
     GetHistoryEntryResponse(GetHistoryEntryResponseEvent),
 
+    /// Response to ListCustomPrompts request.
+    ListCustomPromptsResponse(ListCustomPromptsResponseEvent),
+
     PlanUpdate(UpdatePlanArgs),
 
     /// Browser screenshot has been captured and is ready for display
@@ -560,6 +567,12 @@ pub struct ReplayHistoryEvent {
     /// Items to render in order. Front-ends should render these as static
     /// history without triggering any tool execution.
     pub items: Vec<codex_protocol::models::ResponseItem>,
+}
+
+/// Response payload for `Op::ListCustomPrompts`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ListCustomPromptsResponseEvent {
+    pub custom_prompts: Vec<CustomPrompt>,
 }
 
 impl From<TokenUsage> for FinalOutput {

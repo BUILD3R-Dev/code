@@ -45,6 +45,7 @@ pub(crate) use chat_composer::ChatComposer;
 pub(crate) use chat_composer::InputResult;
 
 use codex_core::protocol::Op;
+use codex_protocol::custom_prompts::CustomPrompt;
 use approval_modal_view::ApprovalModalView;
 use codex_core::config_types::ReasoningEffort;
 use codex_core::config_types::TextVerbosity;
@@ -379,6 +380,12 @@ impl BottomPane<'_> {
     ) {
         self.composer
             .set_token_usage(total_token_usage, last_token_usage, model_context_window);
+        self.request_redraw();
+    }
+
+    /// Update custom prompts available for the slash popup by forwarding to the composer.
+    pub(crate) fn set_custom_prompts(&mut self, prompts: Vec<CustomPrompt>) {
+        self.composer.set_custom_prompts(prompts);
         self.request_redraw();
     }
 

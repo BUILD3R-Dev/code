@@ -13,3 +13,4 @@ Save frequently used prompts as Markdown files and reuse them quickly from the s
 - Notes:
   - Files with names that collide with built‑in commands (e.g. `/init`) are ignored and won’t appear.
   - New or changed files are discovered on session start. If you add a new prompt while Codex is running, start a new session to pick it up.
+  - Argument substitution: when you invoke a prompt with extra text after the name (e.g. `/prp-codex-create 12345`), any `{{args}}` placeholder in the prompt file will be replaced with the trailing text (`12345`). If the file does not contain `{{args}}`, the trailing text is appended to the end of the prompt after a blank line.

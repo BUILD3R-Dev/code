@@ -51,6 +51,7 @@ use codex_core::protocol::ExecCommandBeginEvent;
 use codex_core::protocol::ExecCommandEndEvent;
 use codex_core::protocol::InputItem;
 use codex_core::protocol::SessionConfiguredEvent;
+use codex_core::protocol::ListCustomPromptsResponseEvent;
 // MCP tool call handlers moved into chatwidget::tools
 use codex_core::protocol::Op;
 use codex_core::protocol::PatchApplyBeginEvent;
@@ -3056,7 +3057,14 @@ impl ChatWidget<'_> {
                     self.submit_user_message(user_message);
                 }
 
+                // Request custom prompts for the slash popup at session start
+                self.submit_op(Op::ListCustomPrompts);
+
                 self.request_redraw();
+            }
+            EventMsg::ListCustomPromptsResponse(ev) => {
+                // Forward prompts to the bottom pane so the slash popup can display them
+                self.bottom_pane.set_custom_prompts(ev.custom_prompts);
             }
             EventMsg::WebSearchBegin(ev) => {
                 // Enforce order presence (tool events should carry it)

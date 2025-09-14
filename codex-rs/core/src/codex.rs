@@ -37,6 +37,8 @@ use uuid::Uuid;
 use crate::CodexAuth;
 use crate::protocol::WebSearchBeginEvent;
 use crate::protocol::WebSearchCompleteEvent;
+use crate::protocol::ListCustomPromptsResponseEvent;
+use codex_protocol::custom_prompts::CustomPrompt;
 use codex_protocol::models::WebSearchAction;
 
 /// Initial submission ID for session configuration
@@ -1858,6 +1860,29 @@ async fn submission_loop(
                     if let Err(e) = tx_event.send(event).await {
                         warn!("failed to send GetHistoryEntryResponse event: {e}");
                     }
+                });
+            }
+            Op::ListCustomPrompts => {
+                // Enumerate custom prompts from $CODEX_HOME/prompts (or empty if unset)
+                let sub_id = sub.id.clone();
+                let tx_event = tx_event.clone();
+                tokio::spawn(async move {
+                    let custom_prompts: Vec<CustomPrompt> = if let Some(dir) =
+                        crate::custom_prompts::default_prompts_dir()
+                    {
+                        crate::custom_prompts::discover_prompts_in(&dir).await
+                    } else {
+                        Vec::new()
+                    };
+                    let event = Event {
+                        id: sub_id,
+                        event_seq: 0,
+                        msg: EventMsg::ListCustomPromptsResponse(
+                            ListCustomPromptsResponseEvent { custom_prompts },
+                        ),
+                        order: None,
+                    };
+                    let _ = tx_event.send(event).await;
                 });
             }
             // Upstream protocol no longer includes ListMcpTools; skip handling here.

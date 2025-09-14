@@ -128,6 +128,8 @@ pub(crate) struct ChatComposer {
     next_down_scrolls_history: bool,
     // Detect and coalesce paste bursts for smoother UX
     paste_burst: PasteBurst,
+    // Cached custom prompts for slash menu
+    custom_prompts: Vec<CustomPrompt>,
 }
 
 /// Popup state – at most one can be visible at any time.
@@ -176,6 +178,7 @@ impl ChatComposer {
             reasoning_shown: false,
             next_down_scrolls_history: false,
             paste_burst: PasteBurst::default(),
+            custom_prompts: Vec::new(),
         }
     }
 
@@ -770,9 +773,36 @@ impl ChatComposer {
                             return (InputResult::Command(cmd), true);
                         }
                         CommandItem::UserPrompt(idx) => {
-                            let prompt_content = popup
-                                .prompt_content(idx)
-                                .map(|s| s.to_string());
+                            // Extract full command line and split into name + args
+                            let first_line = command_text.lines().next().unwrap_or("");
+                            let mut args_str = String::new();
+                            if let Some(stripped) = first_line.strip_prefix('/') {
+                                let mut parts = stripped.splitn(2, char::is_whitespace);
+                                let _name = parts.next();
+                                if let Some(rest) = parts.next() {
+                                    args_str = rest.trim().to_string();
+                                }
+                            }
+
+                            // Load prompt template and substitute {{args}} with the trailing text
+                            let prompt_content = popup.prompt_content(idx).map(|s| {
+                                if s.contains("{{args}}") {
+                                    s.replace("{{args}}", &args_str)
+                                } else {
+                                    // If no placeholder provided, append args (if any) after a blank line
+                                    if args_str.is_empty() {
+                                        s.to_string()
+                                    } else {
+                                        let mut out = String::with_capacity(s.len() + args_str.len() + 2);
+                                        out.push_str(s);
+                                        out.push_str("\n\n");
+                                        out.push_str(&args_str);
+                                        out
+                                    }
+                                }
+                            });
+
+                            // Clear UI and submit
                             self.textarea.set_text("");
                             self.active_popup = ActivePopup::None;
                             if let Some(contents) = prompt_content {
@@ -1364,6 +1394,9 @@ impl ChatComposer {
             _ => {
                 if input_starts_with_slash {
                     let mut command_popup = CommandPopup::new_with_filter(self.using_chatgpt_auth);
+                    if !self.custom_prompts.is_empty() {
+                        command_popup.set_prompts(self.custom_prompts.clone());
+                    }
                     command_popup.on_composer_text_change(first_line.to_string());
                     self.active_popup = ActivePopup::Command(command_popup);
                     // Notify app: composer expanded due to slash popup
@@ -1375,6 +1408,8 @@ impl ChatComposer {
 
     #[allow(dead_code)]
     pub(crate) fn set_custom_prompts(&mut self, prompts: Vec<CustomPrompt>) {
+        // Cache for future popups
+        self.custom_prompts = prompts.clone();
         if let ActivePopup::Command(popup) = &mut self.active_popup {
             popup.set_prompts(prompts);
         }
